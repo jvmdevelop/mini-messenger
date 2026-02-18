@@ -4,46 +4,60 @@ import com.jvmdevelop.strife.model.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.util.Date;
 
+@Component
 public class JwtUtil {
-    @Value("${jwt.secret}")
-    private static String SECRET;
-    @Value("${jwt.expiration}")
-    private static long EXPIRATION;
-    @Value("${jwt.header}")
-    private static String HEADER;
-    @Value("${jwt.prefix}")
-    private static String PREFIX;
+    
+    @Value("${jwt.secret:mySecretKey}")
+    private String secret;
+    
+    @Value("${jwt.expiration:86400000}")
+    private long expiration;
+    
+    @Value("${jwt.header:Authorization}")
+    private String header;
+    
+    @Value("${jwt.prefix:Bearer }")
+    private String prefix;
+    
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes());
+    }
 
-    public static String generateToken(UserDetails userDetails){
+    public String generateToken(UserDetails userDetails){
         return Jwts.builder()
                 .subject(userDetails.getUsername())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
-                .signWith(SignatureAlgorithm.HS256, SECRET)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
                 .compact();
     }
-    public static boolean validateToken(String token){
+    
+    public boolean validateToken(String token){
         try {
-            Jwts.parser().setSigningKey(SECRET).build().parseClaimsJws(token);
+            Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
             return true;
         } catch (Exception e){
             return false;
         }
     }
 
-    public static String extractUsername(String s) {
-        return Jwts.parser().setSigningKey(SECRET).build().parseClaimsJws(s).getBody().getSubject();
+    public String extractUsername(String token) {
+        return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload().getSubject();
     }
 
     public Long validateAndGetUserId(String token) {
         try {
-            Claims claims = Jwts.parser().setSigningKey(SECRET).build().parseClaimsJws(token).getBody();
-            return Long.parseLong(claims.getSubject());
+            Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+            String username = claims.getSubject();
+            return Long.parseLong(username);
         } catch (Exception e) {
             return null;
         }
