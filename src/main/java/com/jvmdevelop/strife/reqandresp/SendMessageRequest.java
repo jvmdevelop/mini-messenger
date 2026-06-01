@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public final class SendMessageRequest {
+@lombok.NoArgsConstructor
+public class SendMessageRequest {
     private Long chatId;
     private String content;
 }

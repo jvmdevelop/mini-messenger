@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public final class GetCurrentChatRequest {
+@lombok.NoArgsConstructor
+public class GetCurrentChatRequest {
     private Long userId;
 }

@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public final class GetChatMessagesRequest {
+@lombok.NoArgsConstructor
+public class GetChatMessagesRequest {
     private Long chatId;
     private Integer offset = 0;
 

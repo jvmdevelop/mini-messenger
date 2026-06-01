@@ -6,15 +6,17 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-public class WebConfig  implements WebMvcConfigurer {
-    @Value("${frontend.url}")
-    private static String FRONTEND_URL;
+public class WebConfig implements WebMvcConfigurer {
+
+    @Value("${frontend.url:localhost}")
+    private String frontendUrl;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://"+FRONTEND_URL+":3000")
-                .allowedMethods("GET", "POST", "PUT", "DELETE");
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
-
 }

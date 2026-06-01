@@ -6,6 +6,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
+@lombok.NoArgsConstructor
 @Builder
 public class UserDto {
     private String username;

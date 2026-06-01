@@ -53,6 +53,10 @@ public class ChatService {
         return chatRepository.findByIsTetATetTrueAndUsers_Id(userId);
     }
 
+    public List<Chat> findAllByUserId(Long userId) {
+        return chatRepository.findAllByUserId(userId);
+    }
+
     public void addUserToChat(Chat chat, User user) {
         chat.getUsers().add(user);
         chatRepository.save(chat);

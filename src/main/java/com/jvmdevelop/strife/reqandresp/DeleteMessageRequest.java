@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public final class DeleteMessageRequest {
+@lombok.NoArgsConstructor
+public class DeleteMessageRequest {
     private Long messageId;
 
 }

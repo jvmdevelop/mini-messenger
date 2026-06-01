@@ -1,11 +1,11 @@
 package com.jvmdevelop.strife.model;
 
-import com.jvmdevelop.strife.dto.ChatDto;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.List;
 
 @Entity
@@ -13,7 +13,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "chat")
-public class Chat {
+public class Chat implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,7 +26,7 @@ public class Chat {
     @Column(name = "is_tet_a_tet")
     private Boolean isTetATet = false;
 
-    private Long recipientId; // Можно сделать отношение к User, если нужно
+    private Long recipientId;
 
     @ManyToMany
     @JoinTable(
@@ -34,6 +36,9 @@ public class Chat {
     )
     private List<User> users;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Message> messages;
 }

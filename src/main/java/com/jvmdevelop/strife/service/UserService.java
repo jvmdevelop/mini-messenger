@@ -1,19 +1,16 @@
 package com.jvmdevelop.strife.service;
 
 import com.jvmdevelop.strife.exception.ExistException;
-import com.jvmdevelop.strife.exception.TokenValidException;
 import com.jvmdevelop.strife.model.User;
 import com.jvmdevelop.strife.repo.UserRepo;
-import com.jvmdevelop.strife.utils.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
@@ -23,40 +20,34 @@ public class UserService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String USER_CACHE_PREFIX = "user:";
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("(?i)^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$");
 
     public User add(User user) throws ExistException {
-        try {
-            validateEmail(user.getEmail());
-            userRepo.save(user);
-            redisTemplate.opsForValue().set(USER_CACHE_PREFIX + user.getUsername(), user, 1, TimeUnit.HOURS);
-        } catch (Exception e) {
-            throw new ExistException("Username or email already exists");
+        if (!EMAIL_PATTERN.matcher(user.getEmail()).matches()) {
+            throw new IllegalArgumentException("Invalid email format");
         }
-        return user;
-    }
-
-    public User getUserInfo(String name) throws RuntimeException {
-        User userFromCache = (User) redisTemplate.opsForValue().get(USER_CACHE_PREFIX + name);
-        if (userFromCache == null) {
-            User user = userRepo.findByUsername(name).orElseThrow(() -> new RuntimeException("No user found with username: " + name));
-            redisTemplate.opsForValue().set(USER_CACHE_PREFIX + name, user, 1, TimeUnit.HOURS);
-            return user;
+        if (userRepo.findByUsername(user.getUsername()).isPresent()) {
+            throw new ExistException("Username already exists");
         }
-        return userFromCache;
+        User saved = userRepo.save(user);
+        cacheUser(saved);
+        return saved;
     }
 
     public User getUserByLogin(String username) {
-        User userFromCache = (User) redisTemplate.opsForValue().get(USER_CACHE_PREFIX + username);
-        if (userFromCache == null) {
-            User user = userRepo.findByUsername(username).orElseThrow(() -> new RuntimeException("No user found with username: " + username));
-            redisTemplate.opsForValue().set(USER_CACHE_PREFIX + username, user, 1, TimeUnit.HOURS);
-            return user;
-        }
-        return userFromCache;
+        User cached = (User) redisTemplate.opsForValue().get(USER_CACHE_PREFIX + username);
+        if (cached != null) return cached;
+
+        User user = userRepo.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        cacheUser(user);
+        return user;
     }
 
     public User getUserById(Long id) {
-        return userRepo.findById(id).orElseThrow(() -> new RuntimeException("No user found with id: " + id));
+        return userRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 
     public User findById(Long userId) {
@@ -67,53 +58,50 @@ public class UserService {
         return userRepo.findAllById(userIds);
     }
 
-    @Transactional
-    public User changeName(String header, String username) {
-        String token = getToken(header);
-        Optional<User> user = userRepo.findByUsername(token);
-
-        user.get().setUsername(username);
-        userRepo.save(user.get());
-        redisTemplate.opsForValue().set(USER_CACHE_PREFIX + username, user.get(), 1, TimeUnit.HOURS);
-
-        return user.orElse(null);
+    public List<User> searchUsers(String query) {
+        return userRepo.findByUsernameContainingIgnoreCase(query);
     }
 
     @Transactional
-    public User updateAvatar(String avatarUrl, String header) {
-        String token = getToken(header);
-        User user = userRepo.findByUsername(token)
-                .orElseThrow(() -> new RuntimeException("No user found with username: " + JwtUtil.extractUsername(token)));
+    public User changeName(String currentUsername, String newUsername) {
+        User user = userRepo.findByUsername(currentUsername)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        redisTemplate.delete(USER_CACHE_PREFIX + currentUsername);
+        user.setUsername(newUsername);
+        userRepo.save(user);
+        cacheUser(user);
+        return user;
+    }
+
+    @Transactional
+    public User updateAvatar(String currentUsername, String avatarUrl) {
+        User user = userRepo.findByUsername(currentUsername)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setAvatarUrl(avatarUrl);
         userRepo.save(user);
-        redisTemplate.opsForValue().set(USER_CACHE_PREFIX + user.getUsername(), user, 1, TimeUnit.HOURS);
+        cacheUser(user);
         return user;
     }
 
     @Transactional
-    public User updateDescription(String description, String header) {
-        String token = getToken(header);
-        User user = userRepo.findByUsername(token).orElseThrow(() -> new RuntimeException("No user found with username: " + JwtUtil.extractUsername(token)));
+    public User updateDescription(String currentUsername, String description) {
+        User user = userRepo.findByUsername(currentUsername)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         user.setDescription(description);
         userRepo.save(user);
-        redisTemplate.opsForValue().set(USER_CACHE_PREFIX + user.getUsername(), user, 1, TimeUnit.HOURS);
+        cacheUser(user);
         return user;
     }
 
-    public boolean validateEmail(String email) {
-        Pattern pattern = Pattern.compile("(?i)^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$");
-        Matcher matcher = pattern.matcher(email);
-        return matcher.matches();
+    @Transactional
+    public void updateLastSeen(String username) {
+        userRepo.findByUsername(username).ifPresent(user -> {
+            user.setLastSeen(LocalDateTime.now());
+            userRepo.save(user);
+        });
     }
 
-    public String getToken(String header) {
-        if (header == null || !header.startsWith("Bearer ")) {
-            return null;
-        }
-        String token = header.substring(7);
-        if (!JwtUtil.validateToken(token)) {
-            throw new TokenValidException("Token is not valid");
-        }
-        return JwtUtil.extractUsername(token);
+    private void cacheUser(User user) {
+        redisTemplate.opsForValue().set(USER_CACHE_PREFIX + user.getUsername(), user, 1, TimeUnit.HOURS);
     }
 }

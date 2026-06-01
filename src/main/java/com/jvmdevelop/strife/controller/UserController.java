@@ -3,23 +3,23 @@ package com.jvmdevelop.strife.controller;
 import com.jvmdevelop.strife.model.User;
 import com.jvmdevelop.strife.model.UserDetailsImpl;
 import com.jvmdevelop.strife.service.UserService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.http.HttpRequest;
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/")
+@RequestMapping("/api/v1")
 @AllArgsConstructor
 public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    public String getCurrentSession(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return userDetails.getUsername();
+    public ResponseEntity<User> getCurrentUser(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        User user = userService.getUserById(userDetails.getId());
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/getUserByLogin/{username}")
@@ -32,26 +32,26 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    @GetMapping("/user")
-    public ResponseEntity<User> getUserInfo(@PathVariable String username) throws Exception {
-        return ResponseEntity.ok(userService.getUserInfo(username));
+    @GetMapping("/users/search")
+    public ResponseEntity<List<User>> searchUsers(@RequestParam String q) {
+        return ResponseEntity.ok(userService.searchUsers(q));
     }
 
     @PostMapping("/cname")
-    public ResponseEntity<User> cname(HttpServletRequest request, @RequestParam String username) {
-        String header = request.getHeader("Authorization");
-        return ResponseEntity.ok(userService.changeName(header, username));
+    public ResponseEntity<User> changeName(@AuthenticationPrincipal UserDetailsImpl userDetails,
+                                           @RequestParam String username) {
+        return ResponseEntity.ok(userService.changeName(userDetails.getUsername(), username));
     }
 
     @PostMapping("/description")
-    public ResponseEntity<User> cdesc(HttpServletRequest request, @RequestParam String description) {
-        String header = request.getHeader("Authorization");
-        return ResponseEntity.ok(userService.updateDescription(description, header));
+    public ResponseEntity<User> updateDescription(@AuthenticationPrincipal UserDetailsImpl userDetails,
+                                                  @RequestParam String description) {
+        return ResponseEntity.ok(userService.updateDescription(userDetails.getUsername(), description));
     }
 
     @PostMapping("/avatar")
-    public ResponseEntity<User> cavatar(HttpServletRequest request, @RequestParam String avatarUrl) {
-        String header = request.getHeader("Authorization");
-        return ResponseEntity.ok(userService.updateAvatar(avatarUrl, header));
+    public ResponseEntity<User> updateAvatar(@AuthenticationPrincipal UserDetailsImpl userDetails,
+                                             @RequestParam String avatarUrl) {
+        return ResponseEntity.ok(userService.updateAvatar(userDetails.getUsername(), avatarUrl));
     }
 }

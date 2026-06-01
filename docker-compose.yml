@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mini-messenger
+      POSTGRES_USER: messenger
+      POSTGRES_PASSWORD: messenger
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mini-messenger
+      SPRING_DATASOURCE_USERNAME: messenger
+      SPRING_DATASOURCE_PASSWORD: messenger
+      SPRING_DATA_REDIS_HOST: redis
+
+volumes:
+  postgres_data:

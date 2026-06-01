@@ -1,11 +1,12 @@
 package com.jvmdevelop.strife.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -14,32 +15,36 @@ import java.util.List;
 @Data
 @Builder
 @Table(name = "users")
-public class User {
+public class User implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
     private String username;
+
     @Column(unique = true, nullable = false)
     private String email;
+
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
-    @Column(nullable = false)
+
     private String description;
+
     @Column(nullable = false)
     private String role;
+
     private String avatarUrl;
 
-    @ManyToMany(mappedBy = "users")
-    private List<Chat> chats;
+    private LocalDateTime lastSeen;
 
-    public User(User user ,String username){
-        this.username = username;
-        this.email = user.getEmail();
-        this.password = user.getPassword();
-        this.description = user.getDescription();
-        this.role = user.getRole();
-        this.avatarUrl = user.getAvatarUrl();
-    }
+    @JsonIgnore
+    @ManyToMany(mappedBy = "users")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<Chat> chats;
 }

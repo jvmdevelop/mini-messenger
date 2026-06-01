@@ -5,7 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public final class EditMessageRequest {
+@lombok.NoArgsConstructor
+public class EditMessageRequest {
     private Long messageId;
     private String content;
 
