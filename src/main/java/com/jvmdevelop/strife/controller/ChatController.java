@@ -51,7 +51,6 @@ public class ChatController {
 
         Chat created = chatService.createChat(chat);
 
-        // Notify all participants about the new chat
         for (User user : users) {
             messagingTemplate.convertAndSendToUser(
                     user.getUsername(), "/queue/chats",
@@ -111,7 +110,6 @@ public class ChatController {
 
         Message created = messageService.createMessage(message);
 
-        // Broadcast to all chat subscribers via WebSocket
         messagingTemplate.convertAndSend("/topic/chat/" + chat.getId(),
                 Map.of("type", "MESSAGE_NEW", "message", created));
 
